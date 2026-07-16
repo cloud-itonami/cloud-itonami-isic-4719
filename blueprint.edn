@@ -1,0 +1,12 @@
+{:itonami.blueprint/id "cloud-itonami-4719"
+ :itonami.blueprint/name "Other Retail Sale in Non-Specialized Stores"
+ :itonami.blueprint/isic-rev5 "4719"
+ :itonami.blueprint/domain :commerce/retail
+ :itonami.blueprint/license "AGPL-3.0-or-later"
+ :itonami.blueprint/social-impact [:local-economy :consumer-protection :transparency]
+ :itonami.blueprint/governor :merchandise-retail-governor
+ :itonami.blueprint/robotics true
+ :itonami.blueprint/required-technologies [:robotics :identity :forms :dmn :bpmn :audit-ledger :retail]
+ :itonami.blueprint/optional-technologies []
+ :itonami.blueprint/status :public-oss
+ :itonami.blueprint/maturity :implemented}
