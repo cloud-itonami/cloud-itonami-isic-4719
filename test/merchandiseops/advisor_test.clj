@@ -38,6 +38,17 @@
       (is (string? (:summary p)))
       (is (= "vendor-1" (get-in p [:value :vendor-id]))))))
 
+(deftest propose-inbound-delivery-shape
+  (testing "inbound-delivery proposal has correct shape"
+    (let [p (adv/infer db {:op :log-inbound-delivery
+                           :store-id "store-1"
+                           :patch {:storage-unit-id :freezer-case}})]
+      (is (= :log-inbound-delivery (:op p)))
+      (is (= "store-1" (:store-id p)))
+      (is (= :propose (:effect p)))
+      (is (map? (:value p)))
+      (is (contains? (:value p) :store-id)))))
+
 (deftest propose-loss-prevention-concern-shape
   (testing "loss-prevention-concern proposal always escalates"
     (let [p (adv/infer db {:op :flag-loss-prevention-concern
@@ -50,7 +61,7 @@
 (deftest all-proposals-effect-is-always-propose
   (testing "every proposal type has :effect :propose, never direct actuation"
     (doseq [op [:log-sales-record :schedule-staffing-operation :coordinate-supply-order
-                :flag-loss-prevention-concern]]
+                :log-inbound-delivery :flag-loss-prevention-concern]]
       (let [p (adv/infer db {:op op :store-id "store-1" :patch {}})]
         (is (= :propose (:effect p))
             (str "op " op " must have :effect :propose"))))))
@@ -58,7 +69,7 @@
 (deftest rationale-string-is-present
   (testing "every proposal has a rationale explaining the advisor's thinking"
     (doseq [op [:log-sales-record :schedule-staffing-operation :coordinate-supply-order
-                :flag-loss-prevention-concern]]
+                :log-inbound-delivery :flag-loss-prevention-concern]]
       (let [p (adv/infer db {:op op :store-id "store-1" :patch {}})]
         (is (string? (:rationale p))
             (str "op " op " must have a :rationale string"))))))
