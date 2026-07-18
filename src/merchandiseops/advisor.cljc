@@ -3,10 +3,12 @@
   ISIC-4719 'Other retail sale in non-specialized stores' (general-
   merchandise/department-store retail) operations-coordination actor.
 
-  It drafts exactly four kinds of back-office proposal from a closed
+  It drafts exactly five kinds of back-office proposal from a closed
   allowlist: sales/inventory/return transaction logging, floor-staff
-  scheduling, merchandise supply-order coordination, and loss-prevention-
-  concern flagging. CRITICAL: it is a smart-but-untrusted advisor. It
+  scheduling, merchandise supply-order coordination, inbound-delivery
+  logging (e.g. from an upstream cold-chain 3PL such as
+  cloud-itonami-jsic-4721), and loss-prevention-concern flagging.
+  CRITICAL: it is a smart-but-untrusted advisor. It
   returns a *proposal* (with a rationale + the fields it cited), never a
   committed record and NEVER a direct actuation -- every proposal's
   `:effect` is always `:propose`. Every output is censored downstream by
@@ -83,6 +85,28 @@
    :value      (merge {:store-id store-id} patch)
    :confidence 0.90})
 
+(defn- propose-inbound-delivery
+  "Draft an inbound-delivery log entry -- pure logging of an observed
+  physical receipt (e.g. from an upstream cold-chain 3PL such as
+  cloud-itonami-jsic-4721), never a shelf/unit-price decision. May carry
+  an optional cross-actor `:handoff` record (superproject ADR-2800000500
+  wire shape, same field names as cloud-itonami-jsic-4721's own
+  `:handoff` -- no shared code) plus a `:storage-unit-id` naming which of
+  this store's own cold-storage units
+  (`merchandiseops.governor/cold-storage-requirements`) the delivery is
+  being placed into -- `merchandiseops.governor`'s
+  `cold-chain-handoff-violations` independently verifies the two are
+  temperature-compatible."
+  [_db {:keys [store-id patch]}]
+  {:op         :log-inbound-delivery
+   :store-id   store-id
+   :summary    (str store-id " の入荷記録を記録: " (pr-str (keys patch)))
+   :rationale  "上流サプライヤー(冷蔵倉庫3PL等)からの入荷観察記録のみ。値付けの判断は含まない。"
+   :cites      [store-id]
+   :effect     :propose
+   :value      (merge {:store-id store-id} patch)
+   :confidence 0.92})
+
 (defn- propose-loss-prevention-concern
   "Surface an observed loss-prevention concern (suspected shoplifting,
   inventory shrinkage, product-safety issue) for HUMAN triage. This op
@@ -110,6 +134,7 @@
                    :log-sales-record (propose-sales-record _db request)
                    :schedule-staffing-operation (propose-staffing-operation _db request)
                    :coordinate-supply-order (propose-supply-order _db request)
+                   :log-inbound-delivery (propose-inbound-delivery _db request)
                    :flag-loss-prevention-concern (propose-loss-prevention-concern _db request)
                    {})]
     ;; Test hook: allow injecting scope-excluded content to exercise the

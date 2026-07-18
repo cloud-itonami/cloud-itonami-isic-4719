@@ -6,22 +6,25 @@
 (deftest phase-0-read-only
   (testing "phase 0 allows no writes"
     (doseq [op [:log-sales-record :schedule-staffing-operation :coordinate-supply-order
-                :flag-loss-prevention-concern]]
+                :log-inbound-delivery :flag-loss-prevention-concern]]
       (let [{:keys [disposition]} (phase/gate 0 {:op op} :commit)]
         (is (= :hold disposition)
             (str "phase 0 must hold all ops including " op))))))
 
 (deftest phase-1-sales-record-only
-  (testing "phase 1 allows only sales-record logging, requires approval"
+  (testing "phase 1 allows sales-record and inbound-delivery logging, requires approval"
     (let [{:keys [disposition reason]} (phase/gate 1 {:op :log-sales-record} :commit)]
       (is (= :escalate disposition))
       (is (= :phase-approval reason)))
+    (let [{:keys [disposition]} (phase/gate 1 {:op :log-inbound-delivery} :commit)]
+      (is (= :escalate disposition)))
     (let [{:keys [disposition]} (phase/gate 1 {:op :schedule-staffing-operation} :commit)]
       (is (= :hold disposition)))))
 
 (deftest phase-2-adds-coordination-ops
   (testing "phase 2 allows coordination ops, still requires approval"
-    (doseq [op [:log-sales-record :schedule-staffing-operation :coordinate-supply-order]]
+    (doseq [op [:log-sales-record :schedule-staffing-operation :coordinate-supply-order
+                :log-inbound-delivery]]
       (let [{:keys [disposition]} (phase/gate 2 {:op op} :commit)]
         (is (= :escalate disposition)
             (str "phase 2 op " op " requires approval"))))))
@@ -33,6 +36,8 @@
     (let [{:keys [disposition]} (phase/gate 3 {:op :schedule-staffing-operation} :commit)]
       (is (= :commit disposition)))
     (let [{:keys [disposition]} (phase/gate 3 {:op :coordinate-supply-order} :commit)]
+      (is (= :commit disposition)))
+    (let [{:keys [disposition]} (phase/gate 3 {:op :log-inbound-delivery} :commit)]
       (is (= :commit disposition)))))
 
 (deftest loss-prevention-concern-holds-when-not-enabled

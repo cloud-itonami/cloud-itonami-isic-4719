@@ -115,8 +115,9 @@ MerchandiseRetailGovernor.
 
 - **Closed proposal-op allowlist**: `log-sales-record`,
   `schedule-staffing-operation`, `coordinate-supply-order`,
-  `flag-loss-prevention-concern` (all `:effect :propose`).
-- **Four HARD governor checks** (permanent, un-overridable):
+  `log-inbound-delivery`, `flag-loss-prevention-concern` (all
+  `:effect :propose`).
+- **Five HARD governor checks** (permanent, un-overridable):
   1. **Store unverified** -- the target store's business registration
      must exist AND be independently registered/verified in the store.
   2. **Vendor unverified** (FLAGSHIP NEW) -- for `:coordinate-supply-
@@ -127,6 +128,17 @@ MerchandiseRetailGovernor.
   4. **Scope exclusion** -- directly finalizing a loss-prevention-
      enforcement action (detention, search, arrest, confiscation) and an
      op outside the closed allowlist are both permanently blocked.
+  5. **Cross-actor handoff cold-chain incompatibility** (superproject
+     ADR-2800000500) -- when a proposal's `:value` carries both a
+     `:handoff` record (the wire shape an upstream cold-chain 3PL such
+     as cloud-itonami-jsic-4721 populates on its own outbound dispatch
+     -- see that repo's ADR-2607177600) and a `:storage-unit-id` naming
+     which of this store's own cold-storage units
+     (`refrigerated-case`/`freezer-case`) the delivery is going into,
+     this actor independently verifies the handoff's declared
+     temperature window overlaps that unit's own operating band. No
+     shared code with jsic-4721, just the same field names; optional on
+     both fields.
 - **Two ESCALATE (SOFT) gates**, either forces human sign-off:
   - `:flag-loss-prevention-concern` -- ALWAYS escalates, regardless of
     confidence or phase. A "flag a concern" op is never auto-commit
@@ -138,12 +150,12 @@ MerchandiseRetailGovernor.
     sibling actor.)
 - **Staged rollout** (Phase 0→3):
   - Phase 0: read-only
-  - Phase 1: sales-record logging only (approval-gated)
+  - Phase 1: sales-record + inbound-delivery logging only (approval-gated)
   - Phase 2: + staffing-operation scheduling, supply-order proposals
     (approval-gated)
   - Phase 3: auto-commits clean, high-confidence, low-cost proposals
-    (loss-prevention concerns and high-cost supply orders always
-    escalate)
+    (loss-prevention concerns, high-cost supply orders, and a HARD
+    cold-chain handoff mismatch always escalate/hold)
 - **Append-only audit ledger** -- every decision is an immutable log
   entry.
 - **langgraph-clj StateGraph** -- one request = one supervised run;
