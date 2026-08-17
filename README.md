@@ -59,6 +59,25 @@ concern for a human to triage is exactly this actor's job --
 `:flag-loss-prevention-concern` is never excluded by this check, only
 FINALIZING/enforcing/physically-acting-on that concern is.
 
+### Store day (Andon-shaped outer loop)
+
+`merchandiseops.storeday` runs one brick-and-mortar day as a **finite**
+list of the existing five ops: roster → hire request → inbound → sales
+→ restock → loss-prevention flag. It is the same *shape* as Andon Labs'
+Andon Market (Luna), not the same authority.
+
+- A brief that names fund-actuation keys (`:charges`, `:corporate-card`,
+  `:wire-funds`, …) is rejected **before** any actor run.
+- A hire is `:schedule-staffing-operation` with `:hire-request? true`
+  and always escalates. This actor never signs an employment contract.
+- Charging a corporate card, wiring funds, or detaining a person remains
+  a HARD scope exclusion.
+
+```
+clojure -M:dev:test
+clojure -M:dev:run
+```
+
 ### Actuation
 
 **Every proposal this actor generates is `:effect :propose`, never a

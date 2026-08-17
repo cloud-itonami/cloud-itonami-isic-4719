@@ -16,6 +16,7 @@
   (:require [langgraph.graph :as g]
             [merchandiseops.advisor :as advisor]
             [merchandiseops.store :as store]
+            [merchandiseops.storeday :as storeday]
             [merchandiseops.operation :as op]))
 
 (defn- exec-op [actor tid request context]
@@ -90,6 +91,17 @@
                                    :out-of-scope? true
                                    :patch {}} coordinator-phase-3))
 
+
+    (println "\n== store-day store-1 (Andon-shaped outer loop, hire+concern escalate then approve) ==")
+    (let [receipt (storeday/run-day db storeday/demo-brief
+                                    {:approver "loss-prevention-coordinator-1"
+                                     :actor actor
+                                     :thread-prefix "sim-day"})]
+      (println receipt))
+
+    (println "\n== store-day store-3 (unverified -> every tick HARD hold) ==")
+    (println (storeday/run-day db (assoc storeday/demo-brief :store-id "store-3")
+                               {:actor actor :thread-prefix "sim-unverified"}))
     (println "\n== audit ledger ==")
     (doseq [f (store/ledger db)] (println f))
 
