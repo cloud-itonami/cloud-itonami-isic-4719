@@ -25,7 +25,17 @@ clojure -M:test
 
 Expect green if maturity is `implemented`. Fix failures before operating.
 
-## 3. Open the product face
+## 3. Run one store day
+
+```bash
+clojure -M:dev:run
+```
+
+`merchandiseops.sim` now walks a full Andon-shaped day on `store-1`
+(roster, hire request, inbound, sales, restock, concern) and a HARD-held
+day on unverified `store-3`. Hire and concern always wait for a human.
+
+## 4. Open the product face
 
 ```bash
 open docs/index.html   # or: python3 -m http.server -d docs 8080
@@ -33,13 +43,13 @@ open docs/index.html   # or: python3 -m http.server -d docs 8080
 
 Publish: enable GitHub Pages on `main` `/docs`, or any static host.
 
-## 4. Where the Governor sits
+## 5. Where the Governor sits
 
 - Blueprint governor key: `merchandise-retail-governor`
 - Likely source path: `merchandiseops.governor.cljc`
 - Pattern: advise → govern → phase-gate → commit | escalate | hold (itonami actor / ADR-2607011000)
 
-## 5. Claim / go-live
+## 6. Claim / go-live
 
 - Free claim funnel: https://itonami.cloud/isco-1212/
 - Paid path docs: https://itonami.cloud/docs/go-live.md

@@ -96,6 +96,9 @@
       merchandise procurement proposal always needs a human sign-off,
       even when the governor and phase would otherwise allow
       auto-commit.
+    - A `:schedule-staffing-operation` whose drafted `:value` sets
+      `:hire-request? true` -- a hire request always needs a human.
+      The actor never signs an employment contract.
 
   A fifth HARD check, additive, same permanence tier as the four above:
 
@@ -194,7 +197,15 @@
    "取り押さえを実行" "取り押さえを行った" "身柄を拘束" "身柄拘束を実行"
    "所持品検査を実施" "所持品検査を行った" "強制的に検査を実施"
    "現行犯逮捕を実行" "その場で逮捕した" "逮捕を実行"
-   "商品を没収した" "没収を実行した"])
+   "商品を没収した" "没収を実行した"
+   ;; Fund actuation — Andon Market's Luna holds a corporate card. This
+   ;; actor never does. Phrased as the execution ACTION so observational
+   ;; text that merely mentions "card" or "payment" does not self-trip.
+   "charge the corporate card" "charged the corporate card"
+   "execute payment" "executed payment"
+   "wire funds" "wired funds"
+   "spend from the store account"
+   "法人カードで決済" "送金を実行"])
 
 ;; ----------------------------- checks -----------------------------
 
@@ -306,6 +317,14 @@
   (and (= :coordinate-supply-order (:op proposal))
        (some-> proposal :value :estimated-cost (> supply-cost-threshold))))
 
+(defn hire-request-proposal?
+  "A staffing proposal that is actually a hire request (Andon Market's
+  Luna posts jobs and picks people). Employment contracts stay with a
+  human — this is always high-stakes, never auto-commit."
+  [proposal]
+  (and (= :schedule-staffing-operation (:op proposal))
+       (true? (get-in proposal [:value :hire-request?]))))
+
 (defn check
   "Censors a MerchandiseRetailAdvisor proposal against the governor
   rules. Returns {:ok? bool :violations [..] :confidence c :escalate?
@@ -321,7 +340,8 @@
         conf (:confidence proposal 0.0)
         low? (< conf confidence-floor)
         stakes? (boolean (or (always-escalate-ops (:op proposal))
-                              (high-cost-supply-order? proposal)))
+                              (high-cost-supply-order? proposal)
+                              (hire-request-proposal? proposal)))
         hard? (boolean (seq hard))]
     {:ok?          (and (not hard?) (not low?) (not stakes?))
      :violations   hard

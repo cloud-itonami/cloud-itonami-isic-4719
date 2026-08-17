@@ -250,3 +250,45 @@
                    (pr-str (select-keys proposal [:summary :rationale]))))
           (is (empty? (filter #(= :op-not-allowed (:rule %)) (:violations verdict)))
               (str "default advisor proposal for " op " must always be inside the closed op allowlist")))))))
+
+(deftest hire-request-always-escalates
+  (testing "a staffing proposal with :hire-request? true is high-stakes even when otherwise clean"
+    (let [s (store/mem-store {"store-1" store-1})
+          proposal (assoc (clean-proposal :schedule-staffing-operation "store-1")
+                          :value {:store-id "store-1" :hire-request? true
+                                  :role "floor-associate"}
+                          :confidence 0.99)
+          verdict (gov/check {} nil proposal s)]
+      (is (false? (:hard? verdict)))
+      (is (true? (:high-stakes? verdict)))
+      (is (true? (:escalate? verdict))))))
+
+(deftest ordinary-staffing-does-not-force-escalate
+  (testing "a roster staffing proposal without :hire-request? is not high-stakes"
+    (let [s (store/mem-store {"store-1" store-1})
+          verdict (gov/check {} nil (assoc (clean-proposal :schedule-staffing-operation "store-1")
+                                           :confidence 0.9) s)]
+      (is (false? (:hard? verdict)))
+      (is (false? (:high-stakes? verdict)))
+      (is (false? (:escalate? verdict))))))
+
+(deftest corporate-card-charge-content-is-hard
+  (testing "a proposal that claims to charge the corporate card is HARD-blocked"
+    (let [s (store/mem-store {"store-1" store-1})
+          poisoned (assoc (clean-proposal :log-sales-record "store-1")
+                          :rationale "charged the corporate card for a same-day restock")
+          verdict (gov/check {} nil poisoned s)]
+      (is (true? (:hard? verdict)))
+      (is (some #{:scope-excluded} (map :rule (:violations verdict)))))))
+
+(deftest wire-funds-content-is-hard
+  (testing "a proposal that claims to wire funds is HARD-blocked"
+    (let [s (store/mem-store {"store-1" store-1} {"vendor-1" vendor-1})
+          poisoned (assoc (clean-proposal :coordinate-supply-order "store-1")
+                          :summary "wired funds to the vendor overnight"
+                          :value {:store-id "store-1" :vendor-id "vendor-1"
+                                  :estimated-cost 80.0})
+          verdict (gov/check {} nil poisoned s)]
+      (is (true? (:hard? verdict)))
+      (is (some #{:scope-excluded} (map :rule (:violations verdict)))))))
+

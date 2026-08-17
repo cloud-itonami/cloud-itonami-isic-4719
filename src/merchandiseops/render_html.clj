@@ -37,7 +37,8 @@
             [merchandiseops.governor :as governor]
             [merchandiseops.operation :as op]
             [merchandiseops.phase :as phase]
-            [merchandiseops.store :as store]))
+            [merchandiseops.store :as store]
+            [merchandiseops.storeday :as storeday]))
 
 ;; ----------------------------- scenario -----------------------------
 
@@ -197,7 +198,12 @@
     (exec! log actor "s1-scope-drift" 3
            {:op :log-sales-record :store-id "store-1" :out-of-scope? true :patch {}})
 
-    {:db db :runs @log}))
+    (let [happy (storeday/run-day db storeday/demo-brief
+                                  {:approver approver :actor actor
+                                   :thread-prefix "day-happy"})
+          held (storeday/run-day db (assoc storeday/demo-brief :store-id "store-3")
+                                 {:actor actor :thread-prefix "day-held"})]
+      {:db db :runs @log :store-day happy :held-day held})))
 
 ;; ----------------------------- rendering helpers -----------------------------
 
@@ -348,6 +354,26 @@
           (if (some? confidence) (esc confidence) "&mdash;")
           (dash summary)))
 
+
+(defn- store-day-tick-row [{:keys [i thread-id op disposition final-disposition hard? approved-by violations]}]
+  (format "        <tr><td>%s</td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+          (esc i) (esc thread-id) (esc op)
+          (case disposition
+            :commit "<span class=\"ok\">commit</span>"
+            :hold "<span class=\"critical\">hold</span>"
+            :escalate "<span class=\"warn\">escalate</span>"
+            (esc disposition))
+          (if hard? "<span class=\"critical\">HARD</span>" "<span class=\"ok\">no</span>")
+          (case final-disposition
+            :commit "<span class=\"ok\">commit</span>"
+            :hold "<span class=\"critical\">hold</span>"
+            :escalate "<span class=\"warn\">escalate</span>"
+            (esc final-disposition))
+          (cond
+            approved-by (str "<span class=\"ok\">" (esc approved-by) "</span>")
+            (seq violations) (str/join ", " (map #(str "<code>" (esc (:rule %)) "</code>") violations))
+            :else "&mdash;")))
+
 (defn- cold-storage-row [[unit-id {:keys [storage-temp-min-c storage-temp-max-c]}]]
   (format "        <tr><td><code>%s</code></td><td>%s</td><td>%s</td></tr>"
           (esc unit-id) (esc storage-temp-min-c) (esc storage-temp-max-c)))
@@ -357,7 +383,7 @@
 (defn render
   "Renders the whole operator console from `{:db .. :runs ..}` as returned
   by `run-demo!` (or any other REAL scenario)."
-  [{:keys [db runs]}]
+  [{:keys [db runs store-day held-day]}]
   (let [ledger (vec (store/ledger db))
         coord-log (vec (store/coordination-log db))
         ops (vec (sort-by name governor/allowed-ops))
@@ -380,6 +406,33 @@
      "    <h2>How this page is produced</h2>\n"
      "    <p>Every id, number, disposition, escalation reason and hold detail below was produced by <strong>actually running this repo's actor</strong> at build time: <code>merchandiseops.operation</code> (a langgraph StateGraph) → <code>merchandiseops.advisor</code> → <code>merchandiseops.governor</code> → <code>merchandiseops.phase</code> → <code>merchandiseops.store</code>. Regenerate with <code>clojure -M:dev:render-html</code>. The page is deterministic: two consecutive runs against the same seed are byte-identical.</p>\n"
      "    <p class=\"muted\">The advisor is this repo's deterministic offline mock (<code>merchandiseops.advisor/mock-advisor</code>), which is what makes the run reproducible. In production the same proposal shape comes from a real LLM and is censored by exactly the same governor.</p>\n"
+     "  </section>\n"
+
+
+     "  <section class=\"card\">\n"
+     "    <h2>Store day (Andon-shaped outer loop)</h2>\n"
+     "    <p>Produced by actually running <code>merchandiseops.storeday/run-day</code> against the same seeded store. Same five ops as the rest of this actor — roster, hire request, inbound, sales, restock, concern. No corporate card, no employment contract, no detention.</p>\n"
+     "    <p class=\"muted\">Happy day <code>"
+     (esc (:store-id store-day))
+     "</code> on <code>"
+     (esc (:date store-day))
+     "</code>: held="
+     (esc (:held-count store-day))
+     " escalated="
+     (esc (:escalated-count store-day))
+     " committed="
+     (esc (:committed-count store-day))
+     ". Unverified day <code>"
+     (esc (:store-id held-day))
+     "</code> held="
+     (esc (:held-count held-day))
+     ".</p>\n"
+     "    <table>\n"
+     "      <thead><tr><th>#</th><th>Thread</th><th>Op</th><th>First disposition</th><th>HARD?</th><th>Final</th><th>Approver / rule</th></tr></thead>\n"
+     "      <tbody>\n"
+     (str/join "\n" (map store-day-tick-row (concat (:ticks store-day) (:ticks held-day)))) "\n"
+     "      </tbody>\n"
+     "    </table>\n"
      "  </section>\n"
 
      "  <section class=\"card\">\n"
@@ -499,12 +552,23 @@
 
 (defn -main [& args]
   (let [out (or (first args) "docs/samples/operator-console.html")
-        {:keys [db runs] :as result} (run-demo!)
-        html (render result)]
+        {:keys [db runs store-day held-day] :as result} (run-demo!)
+        html (render result)
+        run-holds (count (filter #(seq (get-in % [:state :verdict :violations])) runs))]
+    (when (zero? run-holds)
+      (throw (ex-info "Refusing to write a pass: scenario produced 0 HARD holds" {:runs (count runs)})))
+    (when (< (:escalated-count store-day) 2)
+      (throw (ex-info "Refusing to write a pass: store-day must escalate hire and concern"
+                      {:escalated-count (:escalated-count store-day)})))
+    (when (zero? (:held-count held-day))
+      (throw (ex-info "Refusing to write a pass: unverified store-day produced 0 HARD holds"
+                      {:held-day held-day})))
     (.mkdirs (.getParentFile (java.io.File. ^String out)))
     (spit out html)
     (println "wrote" out
              "-" (count runs) "actor runs,"
              (count (store/ledger db)) "ledger facts,"
              (count (store/coordination-log db)) "committed coordination records,"
-             (count (filter #(seq (get-in % [:state :verdict :violations])) runs)) "HARD holds")))
+             run-holds "HARD holds,"
+             (:escalated-count store-day) "store-day escalations,"
+             (:held-count held-day) "unverified-day holds")))

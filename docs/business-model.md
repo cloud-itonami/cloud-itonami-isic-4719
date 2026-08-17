@@ -20,6 +20,8 @@
 - merchandise supply-order coordination with registered, verified vendors
 - loss-prevention-concern flagging (shoplifting, inventory shrinkage,
   product-safety observations) for human triage
+- one-day store loop (`merchandiseops.storeday`): roster, hire request,
+  inbound, sales, restock, concern — propose only, no card, no contract
 - role-based access and immutable audit ledger
 
 ## Revenue
@@ -36,6 +38,9 @@
 - directly finalizing a loss-prevention-enforcement action (detention,
   search, arrest, confiscation) is permanently out of scope, not a
   rollout milestone -- the actor may only flag a concern for a human
-- a `:flag-loss-prevention-concern` proposal, and a high-cost
-  `:coordinate-supply-order`, always require human sign-off
+- a `:flag-loss-prevention-concern` proposal, a hire request
+  (`:hire-request? true`), and a high-cost `:coordinate-supply-order`
+  always require human sign-off
+- charging a corporate card or wiring funds is a HARD scope exclusion
+  (Andon Market's Luna holds a card; this actor does not)
 - sensitive customer, employee and supplier data stays outside Git
