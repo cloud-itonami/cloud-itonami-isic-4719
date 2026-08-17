@@ -21,7 +21,8 @@
 - loss-prevention-concern flagging (shoplifting, inventory shrinkage,
   product-safety observations) for human triage
 - one-day store loop (`merchandiseops.storeday`): roster, hire request,
-  inbound, sales, restock, concern — propose only, no card, no contract
+  inbound, sales, restock, concern, optional till count — propose only,
+  no card, no till deposit, no contract
 - role-based access and immutable audit ledger
 
 ## Revenue

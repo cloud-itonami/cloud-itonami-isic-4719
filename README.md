@@ -63,13 +63,17 @@ FINALIZING/enforcing/physically-acting-on that concern is.
 
 `merchandiseops.storeday` runs one brick-and-mortar day as a **finite**
 list of the existing five ops: roster → hire request → inbound → sales
-→ restock → loss-prevention flag. It is the same *shape* as Andon Labs'
-Andon Market (Luna), not the same authority.
+→ restock → loss-prevention flag → optional cash-up count. It is the
+same *shape* as Andon Labs' Andon Market (Luna), not the same authority.
 
 - A brief that names fund-actuation keys (`:charges`, `:corporate-card`,
-  `:wire-funds`, …) is rejected **before** any actor run.
+  `:wire-funds`, `:bank-deposit`, `:make-whole`, …) is rejected
+  **before** any actor run.
 - A hire is `:schedule-staffing-operation` with `:hire-request? true`
   and always escalates. This actor never signs an employment contract.
+- A till variance is the existing `:flag-loss-prevention-concern`. This
+  actor never deposits the till, drops cash to the bank, or makes the
+  drawer whole.
 - Charging a corporate card, wiring funds, or detaining a person remains
   a HARD scope exclusion.
 
@@ -233,14 +237,12 @@ This blueprint resolves its technology stack via
 | Floor-staff scheduling coordination (`:schedule-staffing-operation`) | Direct staff time-clock/payroll integration |
 | Merchandise supply-order coordination with a registered, verified vendor, HARD-gated on vendor verification and a double-actuation-free single-proposal shape (`:coordinate-supply-order`) | Real supplier-ordering-system integration |
 | Loss-prevention-concern flagging, ALWAYS human-gated (`:flag-loss-prevention-concern`) | Directly finalizing any loss-prevention-enforcement action -- permanently out of scope, not a gap |
-| Immutable audit ledger for every log/schedule/order/flag decision | Daily reconciliation/cash-up -- a follow-up slice, not in this R0 |
+| Close-of-day till *count* and discrepancy escalate (existing concern op) | Bank drop, safe top-up, making the till whole -- fund actuation, permanently out |
 
-Extending coverage is additive: add the next op (e.g. a return-
-authorization or a cash-discrepancy-escalation check) as its own
-governed op with its own HARD checks and tests, following the SAME "an
-independent governor re-verifies against the actor's own records before
-any real-world act" pattern this repo's flagship checks already
-establish.
+Extending coverage is additive: add the next *existing-op* tick or, if
+the allowlist must grow, a new governed op (e.g. return-authorization)
+with its own HARD checks and tests. Cash-up discrepancy does **not**
+get its own op — it reuses `:flag-loss-prevention-concern`.
 
 ## Maturity
 

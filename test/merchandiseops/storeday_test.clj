@@ -106,3 +106,48 @@
     (is (every? (fn [tick]
                   (some #{:scope-excluded} (map :rule (:violations tick))))
                 (:ticks receipt)))))
+
+(deftest balanced-cash-up-adds-no-tick
+  (let [brief (assoc day/demo-brief :cash-up {:expected 10000.0 :counted 10000.0})
+        planned (day/plan brief)]
+    (is (true? (:ok? planned)))
+    (is (= :balanced (get-in planned [:cash-up :status])))
+    (is (= 6 (count (:requests planned))))
+    (is (not-any? #(get-in % [:patch :cash-up-discrepancy?]) (:requests planned)))))
+
+(deftest cash-up-discrepancy-reuses-loss-prevention-flag
+  (let [planned (day/plan day/demo-cashup-brief)
+        extra (last (:requests planned))]
+    (is (true? (:ok? planned)))
+    (is (= :discrepancy (get-in planned [:cash-up :status])))
+    (is (= -80.0 (get-in planned [:cash-up :delta])))
+    (is (= 7 (count (:requests planned))))
+    (is (= :flag-loss-prevention-concern (:op extra)))
+    (is (true? (get-in extra [:patch :cash-up-discrepancy?])))
+    (is (contains? gov/allowed-ops (:op extra))))
+  (let [db (store/seed-db)
+        receipt (day/run-day db day/demo-cashup-brief
+                             {:approver "coordinator-1" :thread-prefix "cashup"})
+        extra (first (filter #(get-in % [:request :patch :cash-up-discrepancy?])
+                             (:ticks receipt)))]
+    (is (true? (:ok? receipt)))
+    (is (= 7 (count (:ticks receipt))))
+    (is (= 3 (:escalated-count receipt)))
+    (is (= :escalate (:disposition extra)))
+    (is (= :commit (:final-disposition extra)))
+    (is (= :discrepancy (get-in receipt [:cash-up :status])))))
+
+(deftest incomplete-cash-up-is-rejected-before-any-tick
+  (doseq [cu [true {:counted 10} {:expected 10} "10000"]]
+    (let [planned (day/plan (assoc day/demo-brief :cash-up cu))]
+      (is (false? (:ok? planned)) (pr-str cu))
+      (is (#{:cash-up-incomplete :cash-up-invalid} (:error planned)))
+      (is (empty? (:requests planned))))))
+
+(deftest cash-up-nested-deposit-is-rejected-before-any-tick
+  (let [planned (day/plan (assoc day/demo-brief
+                                 :cash-up {:expected 10000.0 :counted 9920.0
+                                           :bank-deposit 9920.0}))]
+    (is (false? (:ok? planned)))
+    (is (= :funds-actuation-in-brief (:error planned)))
+    (is (empty? (:requests planned)))))

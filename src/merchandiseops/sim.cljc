@@ -102,6 +102,12 @@
     (println "\n== store-day store-3 (unverified -> every tick HARD hold) ==")
     (println (storeday/run-day db (assoc storeday/demo-brief :store-id "store-3")
                                {:actor actor :thread-prefix "sim-unverified"}))
+
+    (println "\n== store-day cash-up discrepancy (existing concern op, no deposit) ==")
+    (println (storeday/run-day db storeday/demo-cashup-brief
+                               {:approver "loss-prevention-coordinator-1"
+                                :actor actor
+                                :thread-prefix "sim-cashup"}))
     (println "\n== audit ledger ==")
     (doseq [f (store/ledger db)] (println f))
 

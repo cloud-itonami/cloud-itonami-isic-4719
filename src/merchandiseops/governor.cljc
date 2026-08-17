@@ -205,7 +205,13 @@
    "execute payment" "executed payment"
    "wire funds" "wired funds"
    "spend from the store account"
-   "法人カードで決済" "送金を実行"])
+   "法人カードで決済" "送金を実行"
+   ;; Close-of-day cash-up may *count* the till. Making it whole, dropping
+   ;; it to the bank, or topping it from the safe is fund actuation.
+   "deposit the till" "deposited the till"
+   "make the till whole" "made the till whole"
+   "drop the cash to the bank" "dropped the cash to the bank"
+   "レジ金を補填" "レジ金を入金"])
 
 ;; ----------------------------- checks -----------------------------
 
