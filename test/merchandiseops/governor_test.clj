@@ -292,3 +292,12 @@
       (is (true? (:hard? verdict)))
       (is (some #{:scope-excluded} (map :rule (:violations verdict)))))))
 
+(deftest till-make-whole-content-is-hard
+  (testing "making the till whole is fund actuation, not cash-up counting"
+    (let [s (store/mem-store {"store-1" store-1})
+          poisoned (assoc (clean-proposal :log-sales-record "store-1")
+                          :rationale "made the till whole from the office safe")
+          verdict (gov/check {} nil poisoned s)]
+      (is (true? (:hard? verdict)))
+      (is (some #{:scope-excluded} (map :rule (:violations verdict)))))))
+

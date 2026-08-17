@@ -202,8 +202,11 @@
                                   {:approver approver :actor actor
                                    :thread-prefix "day-happy"})
           held (storeday/run-day db (assoc storeday/demo-brief :store-id "store-3")
-                                 {:actor actor :thread-prefix "day-held"})]
-      {:db db :runs @log :store-day happy :held-day held})))
+                                 {:actor actor :thread-prefix "day-held"})
+          cashup (storeday/run-day db storeday/demo-cashup-brief
+                                   {:approver approver :actor actor
+                                    :thread-prefix "day-cashup"})]
+      {:db db :runs @log :store-day happy :held-day held :cashup-day cashup})))
 
 ;; ----------------------------- rendering helpers -----------------------------
 
@@ -383,7 +386,7 @@
 (defn render
   "Renders the whole operator console from `{:db .. :runs ..}` as returned
   by `run-demo!` (or any other REAL scenario)."
-  [{:keys [db runs store-day held-day]}]
+  [{:keys [db runs store-day held-day cashup-day]}]
   (let [ledger (vec (store/ledger db))
         coord-log (vec (store/coordination-log db))
         ops (vec (sort-by name governor/allowed-ops))
@@ -411,7 +414,7 @@
 
      "  <section class=\"card\">\n"
      "    <h2>Store day (Andon-shaped outer loop)</h2>\n"
-     "    <p>Produced by actually running <code>merchandiseops.storeday/run-day</code> against the same seeded store. Same five ops as the rest of this actor — roster, hire request, inbound, sales, restock, concern. No corporate card, no employment contract, no detention.</p>\n"
+     "    <p>Produced by actually running <code>merchandiseops.storeday/run-day</code> against the same seeded store. Same five ops as the rest of this actor — roster, hire request, inbound, sales, restock, concern, and an optional cash-up count. A till variance reuses the loss-prevention flag. No corporate card, no till deposit, no employment contract, no detention.</p>\n"
      "    <p class=\"muted\">Happy day <code>"
      (esc (:store-id store-day))
      "</code> on <code>"
@@ -426,11 +429,15 @@
      (esc (:store-id held-day))
      "</code> held="
      (esc (:held-count held-day))
+     ". Cash-up day status="
+     (esc (get-in cashup-day [:cash-up :status]))
+     " escalated="
+     (esc (:escalated-count cashup-day))
      ".</p>\n"
      "    <table>\n"
      "      <thead><tr><th>#</th><th>Thread</th><th>Op</th><th>First disposition</th><th>HARD?</th><th>Final</th><th>Approver / rule</th></tr></thead>\n"
      "      <tbody>\n"
-     (str/join "\n" (map store-day-tick-row (concat (:ticks store-day) (:ticks held-day)))) "\n"
+     (str/join "\n" (map store-day-tick-row (concat (:ticks store-day) (:ticks held-day) (:ticks cashup-day)))) "\n"
      "      </tbody>\n"
      "    </table>\n"
      "  </section>\n"
@@ -552,9 +559,11 @@
 
 (defn -main [& args]
   (let [out (or (first args) "docs/samples/operator-console.html")
-        {:keys [db runs store-day held-day] :as result} (run-demo!)
+        {:keys [db runs store-day held-day cashup-day] :as result} (run-demo!)
         html (render result)
-        run-holds (count (filter #(seq (get-in % [:state :verdict :violations])) runs))]
+        run-holds (count (filter #(seq (get-in % [:state :verdict :violations])) runs))
+        cashup-extra (filter #(get-in % [:request :patch :cash-up-discrepancy?])
+                             (:ticks cashup-day))]
     (when (zero? run-holds)
       (throw (ex-info "Refusing to write a pass: scenario produced 0 HARD holds" {:runs (count runs)})))
     (when (< (:escalated-count store-day) 2)
@@ -563,6 +572,12 @@
     (when (zero? (:held-count held-day))
       (throw (ex-info "Refusing to write a pass: unverified store-day produced 0 HARD holds"
                       {:held-day held-day})))
+    (when (or (not= :discrepancy (get-in cashup-day [:cash-up :status]))
+              (empty? cashup-extra)
+              (not-every? #(= :escalate (:disposition %)) cashup-extra))
+      (throw (ex-info "Refusing to write a pass: cash-up discrepancy must escalate via existing concern op"
+                      {:cash-up (:cash-up cashup-day)
+                       :extra (count cashup-extra)})))
     (.mkdirs (.getParentFile (java.io.File. ^String out)))
     (spit out html)
     (println "wrote" out
@@ -571,4 +586,5 @@
              (count (store/coordination-log db)) "committed coordination records,"
              run-holds "HARD holds,"
              (:escalated-count store-day) "store-day escalations,"
-             (:held-count held-day) "unverified-day holds")))
+             (:held-count held-day) "unverified-day holds,"
+             (get-in cashup-day [:cash-up :status]) "cash-up")))

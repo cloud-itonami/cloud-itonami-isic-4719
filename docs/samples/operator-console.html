@@ -2474,8 +2474,8 @@ img,svg { max-width: 100%; height: auto; }</style></head><body>
   </section>
   <section class="card">
     <h2>Store day (Andon-shaped outer loop)</h2>
-    <p>Produced by actually running <code>merchandiseops.storeday/run-day</code> against the same seeded store. Same five ops as the rest of this actor — roster, hire request, inbound, sales, restock, concern. No corporate card, no employment contract, no detention.</p>
-    <p class="muted">Happy day <code>store-1</code> on <code>2026-08-17</code>: held=0 escalated=2 committed=6. Unverified day <code>store-3</code> held=6.</p>
+    <p>Produced by actually running <code>merchandiseops.storeday/run-day</code> against the same seeded store. Same five ops as the rest of this actor — roster, hire request, inbound, sales, restock, concern, and an optional cash-up count. A till variance reuses the loss-prevention flag. No corporate card, no till deposit, no employment contract, no detention.</p>
+    <p class="muted">Happy day <code>store-1</code> on <code>2026-08-17</code>: held=0 escalated=2 committed=6. Unverified day <code>store-3</code> held=6. Cash-up day status=:discrepancy escalated=3.</p>
     <table>
       <thead><tr><th>#</th><th>Thread</th><th>Op</th><th>First disposition</th><th>HARD?</th><th>Final</th><th>Approver / rule</th></tr></thead>
       <tbody>
@@ -2491,6 +2491,13 @@ img,svg { max-width: 100%; height: auto; }</style></head><body>
         <tr><td>3</td><td><code>day-held-3-log-sales-record</code></td><td><code>:log-sales-record</code></td><td><span class="critical">hold</span></td><td><span class="critical">HARD</span></td><td><span class="critical">hold</span></td><td><code>:store-unverified</code></td></tr>
         <tr><td>4</td><td><code>day-held-4-coordinate-supply-order</code></td><td><code>:coordinate-supply-order</code></td><td><span class="critical">hold</span></td><td><span class="critical">HARD</span></td><td><span class="critical">hold</span></td><td><code>:store-unverified</code></td></tr>
         <tr><td>5</td><td><code>day-held-5-flag-loss-prevention-concern</code></td><td><code>:flag-loss-prevention-concern</code></td><td><span class="critical">hold</span></td><td><span class="critical">HARD</span></td><td><span class="critical">hold</span></td><td><code>:store-unverified</code></td></tr>
+        <tr><td>0</td><td><code>day-cashup-0-schedule-staffing-operation</code></td><td><code>:schedule-staffing-operation</code></td><td><span class="ok">commit</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td>&mdash;</td></tr>
+        <tr><td>1</td><td><code>day-cashup-1-schedule-staffing-operation</code></td><td><code>:schedule-staffing-operation</code></td><td><span class="warn">escalate</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td><span class="ok">loss-prevention-coordinator-1</span></td></tr>
+        <tr><td>2</td><td><code>day-cashup-2-log-inbound-delivery</code></td><td><code>:log-inbound-delivery</code></td><td><span class="ok">commit</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td>&mdash;</td></tr>
+        <tr><td>3</td><td><code>day-cashup-3-log-sales-record</code></td><td><code>:log-sales-record</code></td><td><span class="ok">commit</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td>&mdash;</td></tr>
+        <tr><td>4</td><td><code>day-cashup-4-coordinate-supply-order</code></td><td><code>:coordinate-supply-order</code></td><td><span class="ok">commit</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td>&mdash;</td></tr>
+        <tr><td>5</td><td><code>day-cashup-5-flag-loss-prevention-concern</code></td><td><code>:flag-loss-prevention-concern</code></td><td><span class="warn">escalate</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td><span class="ok">loss-prevention-coordinator-1</span></td></tr>
+        <tr><td>6</td><td><code>day-cashup-6-flag-loss-prevention-concern</code></td><td><code>:flag-loss-prevention-concern</code></td><td><span class="warn">escalate</span></td><td><span class="ok">no</span></td><td><span class="ok">commit</span></td><td><span class="ok">loss-prevention-coordinator-1</span></td></tr>
       </tbody>
     </table>
   </section>
@@ -2632,6 +2639,13 @@ img,svg { max-width: 100%; height: auto; }</style></head><body>
         <tr><td><code>:log-sales-record</code></td><td><code>store-1</code></td><td><span class="muted">auto-commit</span></td><td><code>{:returns 3, :stock-count-delta -45, :units-sold 42}</code></td></tr>
         <tr><td><code>:coordinate-supply-order</code></td><td><code>store-1</code></td><td><span class="muted">auto-commit</span></td><td><code>{:estimated-cost 180.0, :item &quot;candles&quot;, :quantity 24, :vendor-id &quot;vendor-1&quot;}</code></td></tr>
         <tr><td><code>:flag-loss-prevention-concern</code></td><td><code>store-1</code></td><td><span class="ok">loss-prevention-coordinator-1</span></td><td><code>{:concern &quot;shrinkage on electronics endcap&quot;, :confidence 0.92}</code></td></tr>
+        <tr><td><code>:schedule-staffing-operation</code></td><td><code>store-1</code></td><td><span class="muted">auto-commit</span></td><td><code>{:date &quot;2026-08-17&quot;, :heads 2, :shift &quot;weekday-floor&quot;, :window &quot;10:00-18:00&quot;}</code></td></tr>
+        <tr><td><code>:schedule-staffing-operation</code></td><td><code>store-1</code></td><td><span class="ok">loss-prevention-coordinator-1</span></td><td><code>{:date &quot;2026-08-17&quot;, :heads 1, :hire-request? true, :role &quot;floor-associate&quot;, :window &quot;weekend&quot;}</code></td></tr>
+        <tr><td><code>:log-inbound-delivery</code></td><td><code>store-1</code></td><td><span class="muted">auto-commit</span></td><td><code>{:delivery-note &quot;dn-day-1&quot;, :item &quot;household-goods&quot;, :quantity 40}</code></td></tr>
+        <tr><td><code>:log-sales-record</code></td><td><code>store-1</code></td><td><span class="muted">auto-commit</span></td><td><code>{:returns 3, :stock-count-delta -45, :units-sold 42}</code></td></tr>
+        <tr><td><code>:coordinate-supply-order</code></td><td><code>store-1</code></td><td><span class="muted">auto-commit</span></td><td><code>{:estimated-cost 180.0, :item &quot;candles&quot;, :quantity 24, :vendor-id &quot;vendor-1&quot;}</code></td></tr>
+        <tr><td><code>:flag-loss-prevention-concern</code></td><td><code>store-1</code></td><td><span class="ok">loss-prevention-coordinator-1</span></td><td><code>{:concern &quot;shrinkage on electronics endcap&quot;, :confidence 0.92}</code></td></tr>
+        <tr><td><code>:flag-loss-prevention-concern</code></td><td><code>store-1</code></td><td><span class="ok">loss-prevention-coordinator-1</span></td><td><code>{:cash-up-discrepancy? true, :concern &quot;cash-up discrepancy expected 10000.0 counted 9920.0&quot;, :confidence 0.95, :counted 9920.0, :delta -80.0, :expected 10000.0}</code></td></tr>
       </tbody>
     </table>
   </section>
@@ -2667,6 +2681,13 @@ img,svg { max-width: 100%; height: auto; }</style></head><body>
         <tr><td><code>:governor-hold</code></td><td><code>:log-sales-record</code></td><td><code>store-3</code></td><td><span class="critical">hold</span></td><td><code>:store-unverified</code></td><td>0.93</td><td>&mdash;</td></tr>
         <tr><td><code>:governor-hold</code></td><td><code>:coordinate-supply-order</code></td><td><code>store-3</code></td><td><span class="critical">hold</span></td><td><code>:store-unverified</code></td><td>0.9</td><td>&mdash;</td></tr>
         <tr><td><code>:governor-hold</code></td><td><code>:flag-loss-prevention-concern</code></td><td><code>store-3</code></td><td><span class="critical">hold</span></td><td><code>:store-unverified</code></td><td>0.92</td><td>&mdash;</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:schedule-staffing-operation</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 のフロアスタッフ配置予定を提案: (:date :shift :window :heads)</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:schedule-staffing-operation</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 のフロアスタッフ配置予定を提案: (:date :role :window :heads :hire-request?)</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:log-inbound-delivery</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 の入荷記録を記録: (:delivery-note :item :quantity)</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:log-sales-record</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 の販売/在庫/返品記録を記録: (:units-sold :returns :stock-count-delta)</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:coordinate-supply-order</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 向け什器/一般商品の発注調整を提案: (:item :quantity :estimated-cost :vendor-id)</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:flag-loss-prevention-concern</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 の防犯懸念フラグ: &quot;shrinkage on electronics endcap&quot;</td></tr>
+        <tr><td><code>:committed</code></td><td><code>:flag-loss-prevention-concern</code></td><td><code>store-1</code></td><td><span class="ok">commit</span></td><td><code>store-1</code></td><td>&mdash;</td><td>store-1 の防犯懸念フラグ: &quot;cash-up discrepancy expected 10000.0 counted 9920.0&quot;</td></tr>
       </tbody>
     </table>
   </section>

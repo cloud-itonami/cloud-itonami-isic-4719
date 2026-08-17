@@ -33,7 +33,9 @@ clojure -M:dev:run
 
 `merchandiseops.sim` now walks a full Andon-shaped day on `store-1`
 (roster, hire request, inbound, sales, restock, concern) and a HARD-held
-day on unverified `store-3`. Hire and concern always wait for a human.
+day on unverified `store-3`. A till variance reuses the concern op — it
+does not deposit cash. Hire, concern, and cash-up discrepancy always
+wait for a human.
 
 ## 4. Open the product face
 

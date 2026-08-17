@@ -24,7 +24,10 @@
   Presence on a brief is a planning failure, not a governor hold —
   the day must not start."
   #{:charges :card-spend :payments :wire-funds :corporate-card
-    :charge-corporate-card :execute-payment})
+    :charge-corporate-card :execute-payment
+    ;; Close-of-day *counting* is in scope. Moving the till is not.
+    :cash-drop :bank-deposit :safe-drop :till-loan :make-whole
+    :petty-cash-withdrawal :deposit-the-till})
 
 (def demo-brief
   "A single verified-store day used by tests, `sim`, and render-html.
@@ -38,6 +41,11 @@
    :restock [{:item "candles" :quantity 24 :estimated-cost 180.0 :vendor-id "vendor-1"}]
    :concerns [{:concern "shrinkage on electronics endcap" :confidence 0.92}]})
 
+(def demo-cashup-brief
+  "Same day plus a till variance. The extra tick is the existing
+  loss-prevention flag, not a new op and not a deposit."
+  (assoc demo-brief :cash-up {:expected 10000.0 :counted 9920.0 :currency "JPY"}))
+
 (defn- staffing-request
   [store-id date entry hire?]
   {:op :schedule-staffing-operation
@@ -45,9 +53,50 @@
    :patch (cond-> (merge {:date date} (dissoc entry :hire-request?))
             hire? (assoc :hire-request? true))})
 
+(defn- cash-up-report
+  "Count-only close. Missing numbers or nested actuation keys fail the
+  plan. A variance becomes an existing loss-prevention flag."
+  [cu]
+  (cond
+    (nil? cu)
+    {:ok? true :cash-up nil}
+
+    (not (map? cu))
+    {:ok? false :error :cash-up-invalid :cash-up nil}
+
+    :else
+    (let [nested (filterv forbidden-brief-keys (keys cu))]
+      (cond
+        (seq nested)
+        {:ok? false :error :funds-actuation-in-brief :forbidden-keys nested :cash-up nil}
+
+        (not (and (number? (:expected cu)) (number? (:counted cu))))
+        {:ok? false :error :cash-up-incomplete :cash-up nil}
+
+        :else
+        (let [delta (- (double (:counted cu)) (double (:expected cu)))
+              report {:expected (:expected cu)
+                      :counted (:counted cu)
+                      :delta delta
+                      :status (if (zero? delta) :balanced :discrepancy)}]
+          {:ok? true :cash-up report})))))
+
+(defn- cash-up-request
+  [store-id {:keys [expected counted delta]}]
+  {:op :flag-loss-prevention-concern
+   :store-id store-id
+   :patch {:concern (str "cash-up discrepancy expected " expected
+                         " counted " counted)
+           :confidence 0.95
+           :cash-up-discrepancy? true
+           :expected expected
+           :counted counted
+           :delta delta}})
+
 (defn- requests-for
-  "Morning-to-close order: roster, hire, inbound, sales, restock, concerns."
-  [{:keys [store-id date roster hire-requests inbound sales restock concerns]}]
+  "Morning-to-close order: roster, hire, inbound, sales, restock,
+  concerns, then an optional cash-up discrepancy flag."
+  [{:keys [store-id date roster hire-requests inbound sales restock concerns]} cash-up]
   (into []
         (concat
          (map #(staffing-request store-id date % false) roster)
@@ -55,23 +104,33 @@
          (map (fn [x] {:op :log-inbound-delivery :store-id store-id :patch x}) inbound)
          (map (fn [x] {:op :log-sales-record :store-id store-id :patch x}) sales)
          (map (fn [x] {:op :coordinate-supply-order :store-id store-id :patch x}) restock)
-         (map (fn [x] {:op :flag-loss-prevention-concern :store-id store-id :patch x}) concerns))))
+         (map (fn [x] {:op :flag-loss-prevention-concern :store-id store-id :patch x}) concerns)
+         (when (= :discrepancy (:status cash-up))
+           [(cash-up-request store-id cash-up)]))))
 
 (defn plan
   "Day brief -> {:ok? bool :requests [request] ...}.
 
   Rejects fund-actuation keys before any op is emitted. Every emitted
   op must already be on `governor/allowed-ops` — this planner does not
-  grow the allowlist."
+  grow the allowlist. Cash-up may only count; a variance reuses
+  `:flag-loss-prevention-concern`."
   [brief]
   (let [bad (filterv forbidden-brief-keys (keys brief))]
     (if (seq bad)
-      {:ok? false :error :funds-actuation-in-brief :forbidden-keys bad :requests []}
-      (let [requests (requests-for brief)
-            illegal (filterv #(not (contains? governor/allowed-ops (:op %))) requests)]
-        (if (seq illegal)
-          {:ok? false :error :op-not-allowed :illegal-ops (mapv :op illegal) :requests []}
-          {:ok? true :requests requests})))))
+      {:ok? false :error :funds-actuation-in-brief :forbidden-keys bad :requests [] :cash-up nil}
+      (let [cu (cash-up-report (:cash-up brief))]
+        (if-not (:ok? cu)
+          {:ok? false
+           :error (:error cu)
+           :forbidden-keys (:forbidden-keys cu)
+           :requests []
+           :cash-up nil}
+          (let [requests (requests-for brief (:cash-up cu))
+                illegal (filterv #(not (contains? governor/allowed-ops (:op %))) requests)]
+            (if (seq illegal)
+              {:ok? false :error :op-not-allowed :illegal-ops (mapv :op illegal) :requests [] :cash-up nil}
+              {:ok? true :requests requests :cash-up (:cash-up cu)})))))))
 
 (defn- tick-disposition
   [state]
@@ -101,6 +160,7 @@
        :illegal-ops (:illegal-ops planned)
        :store-id (:store-id brief)
        :date (:date brief)
+       :cash-up nil
        :ticks []}
       (let [actor (or actor (op/build st))
             ctx {:actor-id "store-day"
@@ -133,6 +193,7 @@
         {:ok? (empty? held)
          :store-id (:store-id brief)
          :date (:date brief)
+         :cash-up (:cash-up planned)
          :ticks ticks
          :held-count (count held)
          :escalated-count (count escalated)
