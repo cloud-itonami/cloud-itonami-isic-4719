@@ -222,6 +222,7 @@ clojure -M:run
 - `merchandiseops.phase` -- staged rollout (0→3)
 - `merchandiseops.operation` -- langgraph-clj StateGraph
 - `merchandiseops.sim` -- demo driver
+- `merchandiseops.storeday` -- finite Andon-shaped day over the existing five ops
 
 ## Capability layer
 
