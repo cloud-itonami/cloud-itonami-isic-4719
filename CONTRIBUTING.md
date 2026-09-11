@@ -6,8 +6,8 @@ capability bindings, policy tests, documentation and operator model.
 ## Development
 
 ```bash
-clojure -M:test
-clojure -M:lint
+kbb -M:test
+kbb -M:lint
 ```
 
 ## Rules
