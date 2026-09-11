@@ -78,8 +78,8 @@ same *shape* as Andon Labs' Andon Market (Luna), not the same authority.
   a HARD scope exclusion.
 
 ```
-clojure -M:dev:test
-clojure -M:dev:run
+kbb -M:dev:test
+kbb -M:dev:run
 ```
 
 ### Actuation
@@ -188,16 +188,16 @@ MerchandiseRetailGovernor.
 
 ```bash
 # Install dependencies (if inside the superproject, use :dev alias for local overrides)
-clojure -M:dev -P
+kbb -M:dev -P
 
 # Run tests
-clojure -M:test
+kbb -M:test
 
 # Run linter
-clojure -M:lint
+kbb -M:lint
 
 # Run demo
-clojure -M:run
+kbb -M:run
 ```
 
 ### Test suite
