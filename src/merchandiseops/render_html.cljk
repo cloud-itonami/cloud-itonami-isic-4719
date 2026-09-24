@@ -30,7 +30,7 @@
 
   Usage: `kbb -M:dev:render-html [out-file]`
   (default `docs/samples/operator-console.html`)."
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.io :as kio] [kotoba.lang.text :as str]
             [jp-go-dds.skin]
             [langgraph.graph :as g]
             [merchandiseops.advisor :as advisor]
@@ -578,7 +578,7 @@
       (throw (ex-info "Refusing to write a pass: cash-up discrepancy must escalate via existing concern op"
                       {:cash-up (:cash-up cashup-day)
                        :extra (count cashup-extra)})))
-    (.mkdirs (.getParentFile (java.io.File. ^String out)))
+    (kio/mkdirs (kio/parent-file (kio/file ^String out)))
     (spit out html)
     (println "wrote" out
              "-" (count runs) "actor runs,"
