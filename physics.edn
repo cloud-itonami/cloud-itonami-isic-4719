@@ -1,0 +1,33 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:dev:physics` runs it.
+;;
+;; README "Robotics premise": a robot may perform shelfing, picking,
+;; restocking and point-of-sale handling in an other non-specialized retail
+;; store (ISIC 4719), gated by store policy. The physical work: an arm
+;; placing boxed merchandise on the shelf, and a restock cart moving through
+;; aisles with shoppers, which must stop short.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isic-4719"
+ :cases
+ [{:id :shelve-boxed-merchandise
+   :kind :manipulator
+   :procedure "shelving arm places a boxed item from the restock cart onto a shelf at eye level"
+   :params {:l1-m 0.60 :l2-m 0.50 :m1-kg 6.0 :m2-kg 4.0
+            :from [0.50 0.40] :to [0.30 1.00] :duration-s 1.5 :steps 400}
+   :sweep {:param :payload-kg :values [0.5 1.0 2.0 4.0 6.0]}
+   :quantity :peak-tau1-nm
+   :limit {:max 80.0 :basis "estimate: continuous shoulder torque of a ~5 kg-payload collaborative arm"}
+   :boundary {:lo 0.1 :hi 30.0}}
+  {:id :restock-cart-aisle-stop
+   :kind :transport
+   :procedure "restock cart travelling down a shopping aisle brakes at 1.2 m/s2 when a shopper steps out; the cruise speed is swept"
+   :params {:mass-kg 90.0 :payload-kg 60.0 :distance-m 30.0 :a-max-mps2 0.4 :brake-decel-mps2 1.2
+            :drive-force-n 200.0 :crr 0.015 :cog-height-m 0.40 :payload-cog-height-m 0.70
+            :support-half-length-m 0.35 :max-time-s 600.0}
+   :sweep {:param :v-max-mps :values [0.5 0.8 1.0 1.2 1.5]}
+   :quantity :stopping-distance-m
+   :limit {:max 0.5 :basis "estimate: the gap kept to a shopper who steps into the aisle within the cart's detection range"}
+   :boundary {:lo 0.2 :hi 2.5}}]}
