@@ -1,6 +1,6 @@
 (ns merchandiseops.store-contract-test
   "Contract tests for `merchandiseops.store/Store` protocol."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [merchandiseops.store :as store]))
 
 (deftest mem-store-store-lookup

@@ -2,7 +2,7 @@
   "Pure unit tests of `merchandiseops.governor/check` against hand-built
   proposals -- the fast, focused complement to `governor-contract-test`'s
   full-graph integration coverage."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [merchandiseops.advisor :as adv]
             [merchandiseops.governor :as gov]
             [merchandiseops.store :as store]))

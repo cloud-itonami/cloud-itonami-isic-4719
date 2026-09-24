@@ -1,6 +1,6 @@
 (ns merchandiseops.storeday-test
   "Store-day outer loop: Andon-shaped day, existing ops only."
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [merchandiseops.advisor :as advisor]
             [merchandiseops.governor :as gov]
             [merchandiseops.operation :as op]
